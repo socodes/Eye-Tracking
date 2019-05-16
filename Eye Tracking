@@ -1,0 +1,203 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+//struct definitons and typedefs for these structs
+typedef struct Node Node;
+struct Node{ 
+	int index;
+	int timestap;
+	int duration;
+	int pointX;
+	int pointY;
+	char sName[25];
+	struct Node *next;
+};
+typedef struct Record Record;
+struct Record{
+	Node *first;
+	Node *last;
+	int size;
+};
+//function definitions
+void printList(Node *);
+Node *load_data_points();
+void clean_data_points(Node *,int);
+void show_page_statistics(Node *);
+int total_fixation_duration(Node *);
+int count_fixation_point(Node *);
+void show_AOI_statistics(Node *);
+int main(){
+	int selection,value,fixations;
+	Node *node,*newnode;
+	//allocation for node
+	node=(Node*)malloc(sizeof(Node));
+	Record *record = (Record *)malloc(sizeof(Record));
+	record->first=(Node*)malloc(sizeof(Node));
+	if(record == NULL || record->first == NULL){
+		printf("Dynamic memory allocation error!\n");
+	}
+	else{
+		record->first->next = NULL;
+		record->last = record->first;
+		record->size = 0;
+	}
+	//main menu starts here.
+	printf("A-Eye Menu\n");
+	printf("---------------------\n");
+	printf("1. Clean Data Points\n");
+	printf("2. Show Page Statistics\n");
+	printf("3. Show AOI Statistics\n");
+	printf("4. Exit from A-Eye\n");
+	printf("--------------------\nEnter your selection: ");
+	scanf("%d",&selection);
+	fflush(stdin);
+	node=load_data_points();
+	node->next=node->next->next->next->next->next->next->next; //the line for removing the first line.
+	//printList(node);
+	while(selection < 4){
+		switch(selection){
+			case 1:
+				printf("Enter the threshold value in miliseconds: ");
+				scanf("%d",&value);
+				fflush(stdin);
+				clean_data_points(node,value);
+				//printList(node);
+				break;
+			case 2:
+				show_page_statistics(node);
+				break;
+			case 3:
+				show_AOI_statistics(node);
+				break;
+			case 4:
+				printf("Bye Bye\n");
+				selection=5;
+				break;
+		}
+		printf("A-Eye Menu\n");
+		printf("---------------------\n");
+		printf("1. Clean Data Points\n");
+		printf("2. Show Page Statistics\n");
+		printf("3. Show AOI Statistics\n");
+		printf("4. Exit from A-Eye\n");
+		printf("--------------------\nEnter your selection: ");
+		scanf("%d",&selection);		
+		fflush(stdin);
+	}
+}
+//following function loads data from txt file to linked list.
+Node *load_data_points(){
+	char fileName[25];
+	Node *node;
+	Node *newnode = (Node*)malloc(sizeof(Node));
+	if(newnode==NULL){
+		printf("Memory allocation error!\n");
+	}
+	printf("Enter file name: ");
+	scanf("%s",fileName);
+	fflush(stdin);
+	node=newnode;
+	FILE *file;
+	file=fopen(fileName,"r");
+	if(file==NULL){
+		printf("File Error!\n");
+	}
+	else{
+		printf("The recording is successfully loaded\n");
+		if(newnode != NULL){	
+			newnode->next=NULL;
+			while(!feof(file)){
+				fscanf(file,"%d",&newnode->index);
+				fscanf(file,";");
+				fscanf(file,"%d[^;]",&newnode->timestap);
+				fscanf(file,";");
+				fscanf(file,"%d[^;]",&newnode->duration);
+				fscanf(file,";");
+				fscanf(file,"%d[^;]",&newnode->pointX);
+				fscanf(file,";");
+				fscanf(file,"%d[^;]",&newnode->pointY);
+				fscanf(file,";");
+				fscanf(file,"%s[^\n]",newnode->sName);
+				newnode->next=(Node*)malloc(sizeof(Node));
+				newnode=newnode->next;
+				newnode->next=NULL;								
+			}
+		}
+		fclose(file);
+		
+	}
+	return node;
+}
+//it returns the duration of the node. I accumulate these durations in count fixation point function.
+int total_fixation_duration(Node *p){
+	return p->duration;
+}
+void clean_data_points(Node *p,int value){
+	Node *node,*m;
+	int counter=0;
+	node=p;
+	m=p;
+	while(p->next != NULL){
+		if(p->next->duration < value){
+			m->next = m->next->next;
+			counter++;
+		}
+		p=p->next;
+	}
+	printf("The number of fixation removed: %d\n",counter);
+}
+//this function shows page statistics.
+void show_page_statistics(Node *p){
+	char pageName[25],*call;
+	int counter=0,duration=0;
+	printf("Enter a page name: ");
+	scanf("%s",pageName);
+	fflush(stdin);
+	while(p->next != NULL){
+		call=strstr(p->sName,pageName); //strstr function compares the name and the page name in the node of linked list.
+		if(call != NULL){
+			counter++;
+			duration+=total_fixation_duration(p);
+		}
+		p=p->next;
+	}
+	
+	printf("The number of fixations %d\n",counter);
+	printf("The total durations of fixations: %d miliseconds\n",duration);
+}
+
+int count_fixation_point(Node *p){
+	int counter=0;
+	while(p->next != NULL){
+		counter++;
+		p=p->next;
+	}
+	return counter;
+}
+//following function shows AOI statistics.
+void show_AOI_statistics(Node *p){
+	char a,b,c,d;
+	int x,y,z,t,counter=0,fixations;
+	printf("Please enter the top [X,Y] and bottom [X,Y] coordinates of AOI: ");
+	scanf("%c%d,%d%c%c%d,%d%c",&a,&x,&y,&b,&c,&z,&t,&d);
+	fflush(stdin);
+	while(p->next != NULL){
+//following if chain compares the points.
+		if(p->pointX<x && p->pointX>z){
+			if(p->pointY<y && p->pointY>t){
+				counter++;
+				fixations+=total_fixation_duration(p);
+			}
+		}
+		p=p->next;
+	}
+	printf("The number of fixations: %d\n",counter);
+	printf("The total duration of fixations: %d\n",fixations);
+}
+//function prints the linked list. If you need, you can use.
+void printList(Node *p){
+	while(p->next != NULL){
+		printf("%d %d %d %d %d %s\n",p->index,p->timestap, p->duration, p->pointX,p->pointY,p->sName);
+		p=p->next;
+	}
+}
